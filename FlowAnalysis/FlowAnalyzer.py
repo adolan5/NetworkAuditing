@@ -44,10 +44,16 @@ class FlowAnalyzer:
     return flows
 
   def _decide_flow_action(self, flow_collection, pkt):
+    tcp_attribs = pkt.get('_source').get('layers').get('tcp')
+    ip_attribs = pkt.get('_source').get('layers').get('ip')
+
     flow_to_append_to = flow_collection[-1]
-    if flow_to_append_to.is_open is not True:
+    if not flow_to_append_to.is_open:
       flow_to_append_to = Flow()
       flow_collection.append(flow_to_append_to)
+
+    if tcp_attribs.get('tcp.flags_tree').get('tcp.flags.fin') is '1':
+      flow_to_append_to.is_open -= 1
 
     flow_to_append_to.packets.append(pkt)
 
@@ -57,7 +63,7 @@ class Flow:
   """
 
   def __init__(self):
-    self.is_open = True
+    self.is_open = 2
     self.packets = []
 
   def __repr__(self):
