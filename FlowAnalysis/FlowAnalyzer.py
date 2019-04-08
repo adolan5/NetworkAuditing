@@ -47,13 +47,19 @@ class FlowAnalyzer:
     tcp_attribs = pkt.get('_source').get('layers').get('tcp')
     ip_attribs = pkt.get('_source').get('layers').get('ip')
 
+    # TODO: This is a pretty naive way of distinguishing flows. No analysis of sequence numbers
+    # involved. Can it be beaten?
+    is_fin = tcp_attribs.get('tcp.flags_tree').get('tcp.flags.fin') is '1'
+    is_rst = tcp_attribs.get('tcp.flags_tree').get('tcp.flags.reset') is '1'
+    is_ack = tcp_attribs.get('tcp.flags_tree').get('tcp.flags.ack') is '1'
+
     flow_to_append_to = flow_collection[-1]
-    if not flow_to_append_to.is_open:
+
+    if is_fin or is_rst:
+      flow_to_append_to.is_open = False
+    elif flow_to_append_to.is_open is not True and not is_ack:
       flow_to_append_to = Flow()
       flow_collection.append(flow_to_append_to)
-
-    if tcp_attribs.get('tcp.flags_tree').get('tcp.flags.fin') is '1':
-      flow_to_append_to.is_open -= 1
 
     flow_to_append_to.packets.append(pkt)
 
@@ -63,8 +69,11 @@ class Flow:
   """
 
   def __init__(self):
-    self.is_open = 2
+    self.is_open = True
     self.packets = []
 
   def __repr__(self):
-    return '<Flow of {} packets; Open: {}>'.format(len(self.packets), self.is_open)
+    src_addr = self.packets[0].get('_source').get('layers').get('ip').get('ip.src')
+    dst_addr = self.packets[0].get('_source').get('layers').get('ip').get('ip.dst')
+
+    return '<Flow ({} <--> {}) of {} packets; Open: {}>'.format(src_addr, dst_addr, len(self.packets), self.is_open)
