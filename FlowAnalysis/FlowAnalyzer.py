@@ -1,4 +1,5 @@
 import json
+import statistics
 
 class FlowAnalyzer:
   """The FlowAnalyzer class.
@@ -12,7 +13,7 @@ class FlowAnalyzer:
     """A FlowAnalyzer may be constructed with a string that represents a relative path to a JSON
     file containing PCAP data, formatted with tshark, or a dictionary of the same format.
     """
-    self.tcp_flows = {}
+    self.tcp_flows = []
 
     if type(data) is str:
       with open(data) as f:
@@ -20,9 +21,9 @@ class FlowAnalyzer:
     else:
       self._raw_data = data
 
-    self._analyze_data()
+    self._extract_data()
 
-  def _analyze_data(self):
+  def _extract_data(self):
     self.tcp_flows = self._get_tcp_flows()
 
   def _get_tcp_flows(self):
@@ -41,7 +42,8 @@ class FlowAnalyzer:
 
       self._decide_flow_action(flow_collection, p)
 
-    return flows
+    all_flows = [flow for collection in flows.values() for flow in collection]
+    return all_flows
 
   def _decide_flow_action(self, flow_collection, pkt):
     tcp_attribs = pkt.get('_source').get('layers').get('tcp')
@@ -77,3 +79,17 @@ class Flow:
     dst_addr = self.packets[0].get('_source').get('layers').get('ip').get('ip.dst')
 
     return '<Flow ({} <--> {}) of {} packets; Open: {}>'.format(src_addr, dst_addr, len(self.packets), self.is_open)
+
+  def get_avg_payload_length(self):
+    lens = [int(p.get('_source').get('layers').get('data', {'data.len': 0}).get('data.len')) for p in self.packets]
+    return statistics.mean(lens)
+
+  def get_bitrate(self):
+    times = [float(p.get('_source').get('layers').get('frame').get('frame.time_epoch')) for p in self.packets]
+    start_time = min(times)
+    end_time = max(times)
+
+    duration = end_time - start_time
+    aggregate_bytes = sum([float(p.get('_source').get('layers').get('frame').get('frame.len')) for p in self.packets])
+
+    return (aggregate_bytes / duration) * 8
