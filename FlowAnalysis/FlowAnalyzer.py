@@ -1,5 +1,4 @@
 import json
-import statistics
 from FlowAnalysis._flow import Flow
 
 class FlowAnalyzer:
@@ -43,7 +42,7 @@ class FlowAnalyzer:
 
       self._decide_flow_action(flow_collection, p)
 
-    all_flows = [flow for collection in flows.values() for flow in collection]
+    all_flows = sorted([flow for collection in flows.values() for flow in collection], key=lambda x: x.get_start_end_times()[0])
     return all_flows
 
   def _decide_flow_action(self, flow_collection, pkt):
@@ -60,7 +59,7 @@ class FlowAnalyzer:
 
     if is_fin or is_rst:
       flow_to_append_to.is_open = False
-    elif flow_to_append_to.is_open is not True and not is_ack:
+    elif not flow_to_append_to.is_open and not is_ack:
       flow_to_append_to = Flow()
       flow_collection.append(flow_to_append_to)
 
