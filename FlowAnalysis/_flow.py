@@ -25,14 +25,16 @@ class Flow:
       end = None
     return (start, end)
 
+  def get_duration(self):
+    start_time, end_time = self.get_start_end_times()
+    return end_time - start_time
+
   def get_avg_length(self):
     lens = [int(p.get('_source').get('layers').get('frame').get('frame.len')) for p in self.packets]
     return statistics.mean(lens)
 
   def get_bitrate(self):
-    start_time, end_time = self.get_start_end_times()
-
-    duration = end_time - start_time
+    duration = self.get_duration()
     aggregate_bytes = sum([float(p.get('_source').get('layers').get('frame').get('frame.len')) for p in self.packets])
 
     return (aggregate_bytes / duration) * 8
