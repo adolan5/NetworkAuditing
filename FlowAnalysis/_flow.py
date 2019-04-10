@@ -40,4 +40,22 @@ class Flow:
     duration = self.get_duration()
     aggregate_bytes = sum([float(p.get('_source').get('layers').get('frame').get('frame.len')) for p in self.packets])
 
-    return (aggregate_bytes / duration) * 8
+    try:
+      return (aggregate_bytes / duration) * 8
+    except:
+      return 0
+
+  def export_packet_stats(self):
+    stats = []
+    for p in self.packets:
+      pkt_stats = {}
+      frame_info = p.get('_source').get('layers').get('frame')
+      ip_info = p.get('_source').get('layers').get('ip')
+
+      pkt_stats['src_addr'] = ip_info.get('ip.src')
+      pkt_stats['dst_addr'] = ip_info.get('ip.dst')
+      pkt_stats['pkt_len'] = frame_info.get('frame.len')
+      pkt_stats['timestamp'] = float(frame_info.get('frame.time_epoch'))
+      stats.append(pkt_stats)
+
+    return stats
