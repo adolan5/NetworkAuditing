@@ -5,15 +5,18 @@ class Flow:
   Defined as a number of packets that share particular properties, per RFC 3917.
   """
 
-  def __init__(self):
+  def __init__(self, src, dst, src_port, dst_port):
+    self.src_addr = src
+    self.dst_addr = dst
+    self.src_port = src_port
+    self.dst_port = dst_port
+
     self.is_open = True
     self.packets = []
 
   def __repr__(self):
-    src_addr = self.packets[0].get('_source').get('layers').get('ip').get('ip.src')
-    dst_addr = self.packets[0].get('_source').get('layers').get('ip').get('ip.dst')
-
-    return '<Flow ({} <--> {}) of {} packets; Open: {}>'.format(src_addr, dst_addr, len(self.packets), self.is_open)
+    return '<Flow ({}:{} <--> {}:{}) of {} packets; Open: {}>'.format(self.src_addr, self.src_port,
+        self.dst_addr, self.dst_port, len(self.packets), self.is_open)
 
   def get_start_end_times(self):
     try:

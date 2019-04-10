@@ -34,11 +34,12 @@ class FlowAnalyzer:
       tcp_attribs = p.get('_source').get('layers').get('tcp')
       ip_attribs = p.get('_source').get('layers').get('ip')
 
-      addresses = frozenset((ip_attribs.get('ip.src'), ip_attribs.get('ip.dst')))
-      ports = frozenset((tcp_attribs.get('tcp.srcport'), tcp_attribs.get('tcp.dstport')))
-      composite_tcp_key = (addresses, ports)
+      addresses = (ip_attribs.get('ip.src'), ip_attribs.get('ip.dst'))
+      ports = (tcp_attribs.get('tcp.srcport'), tcp_attribs.get('tcp.dstport'))
+      composite_tcp_key = (frozenset(addresses), frozenset(ports))
 
-      flow_collection = flows.setdefault(composite_tcp_key, [Flow()])
+      flow_collection = flows.setdefault(composite_tcp_key,
+          [Flow(src=addresses[0], dst=addresses[1], src_port=ports[0], dst_port=ports[1])])
 
       self._decide_flow_action(flow_collection, p)
 
