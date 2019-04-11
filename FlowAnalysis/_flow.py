@@ -71,11 +71,13 @@ class Flow:
     dst_lens = [-p.get('pkt_len') for p in dst_packets]
 
     fig, ax = plt.subplots(figsize=(15,10))
-    ax.scatter([p.get('rel_time') for p in src_packets], src_lens)
-    ax.scatter([p.get('rel_time') for p in dst_packets], dst_lens)
+    ax.scatter([p.get('rel_time') for p in src_packets], src_lens, label=self.src_addr)
+    ax.scatter([p.get('rel_time') for p in dst_packets], dst_lens, label=self.dst_addr)
 
+    ax.set_title('Flow between {}:{} and {}:{}'.format(self.src_addr, self.src_port, self.dst_addr, self.dst_port))
     ax.set_xlabel('Relative duration (seconds)')
     ax.set_ylabel('Packet length (bytes)')
+    ax.legend(loc=4)
 
     ticks = ax.get_yticks()
     ax.set_yticklabels([abs(y) for y in ticks])
