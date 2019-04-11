@@ -1,5 +1,5 @@
 import json
-import statistics
+from FlowAnalysis._flow import Flow
 
 class FlowAnalyzer:
   """The FlowAnalyzer class.
@@ -34,15 +34,16 @@ class FlowAnalyzer:
       tcp_attribs = p.get('_source').get('layers').get('tcp')
       ip_attribs = p.get('_source').get('layers').get('ip')
 
-      addresses = frozenset((ip_attribs.get('ip.src'), ip_attribs.get('ip.dst')))
-      ports = frozenset((tcp_attribs.get('tcp.srcport'), tcp_attribs.get('tcp.dstport')))
-      composite_tcp_key = (addresses, ports)
+      addresses = (ip_attribs.get('ip.src'), ip_attribs.get('ip.dst'))
+      ports = (tcp_attribs.get('tcp.srcport'), tcp_attribs.get('tcp.dstport'))
+      composite_tcp_key = (frozenset(addresses), frozenset(ports))
 
-      flow_collection = flows.setdefault(composite_tcp_key, [Flow()])
+      flow_collection = flows.setdefault(composite_tcp_key,
+          [Flow(src=addresses[0], dst=addresses[1], src_port=ports[0], dst_port=ports[1])])
 
       self._decide_flow_action(flow_collection, p)
 
-    all_flows = [flow for collection in flows.values() for flow in collection]
+    all_flows = sorted([flow for collection in flows.values() for flow in collection], key=lambda x: x.get_start_end_times()[0])
     return all_flows
 
   def _decide_flow_action(self, flow_collection, pkt):
@@ -59,37 +60,8 @@ class FlowAnalyzer:
 
     if is_fin or is_rst:
       flow_to_append_to.is_open = False
-    elif flow_to_append_to.is_open is not True and not is_ack:
+    elif not flow_to_append_to.is_open and not is_ack:
       flow_to_append_to = Flow()
       flow_collection.append(flow_to_append_to)
 
     flow_to_append_to.packets.append(pkt)
-
-class Flow:
-  """Simple representation of a flow.
-  Defined as a number of packets that share particular properties, per RFC 3917.
-  """
-
-  def __init__(self):
-    self.is_open = True
-    self.packets = []
-
-  def __repr__(self):
-    src_addr = self.packets[0].get('_source').get('layers').get('ip').get('ip.src')
-    dst_addr = self.packets[0].get('_source').get('layers').get('ip').get('ip.dst')
-
-    return '<Flow ({} <--> {}) of {} packets; Open: {}>'.format(src_addr, dst_addr, len(self.packets), self.is_open)
-
-  def get_avg_payload_length(self):
-    lens = [int(p.get('_source').get('layers').get('data', {'data.len': 0}).get('data.len')) for p in self.packets]
-    return statistics.mean(lens)
-
-  def get_bitrate(self):
-    times = [float(p.get('_source').get('layers').get('frame').get('frame.time_epoch')) for p in self.packets]
-    start_time = min(times)
-    end_time = max(times)
-
-    duration = end_time - start_time
-    aggregate_bytes = sum([float(p.get('_source').get('layers').get('frame').get('frame.len')) for p in self.packets])
-
-    return (aggregate_bytes / duration) * 8
