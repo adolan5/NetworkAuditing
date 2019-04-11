@@ -1,5 +1,6 @@
 import statistics
 from matplotlib import pyplot as plt
+from matplotlib import ticker
 
 class Flow:
   """Simple representation of a flow.
@@ -85,7 +86,5 @@ class Flow:
     ax.set_ylabel('Packet length (bytes)')
     ax.legend(loc=4, title='Sender of Packet')
 
-    ticks = ax.get_yticks()
-    ax.set_yticklabels([abs(y) for y in ticks])
-
+    ax.yaxis.set_major_formatter(ticker.FuncFormatter(lambda x, pos: '{}'.format(abs(x))))
     return (fig, ax)
