@@ -1,5 +1,6 @@
 import statistics
 from matplotlib import pyplot as plt
+from matplotlib import ticker
 
 class Flow:
   """Simple representation of a flow.
@@ -62,10 +63,15 @@ class Flow:
 
     return stats
 
-  def get_packets_graph(self, duration_start=0):
+  def get_packets_graph(self, duration_start=0, duration_end=None):
+    if duration_end is None:
+      duration_end = self.get_duration()
+
     stats = self.export_packet_stats()
-    src_packets = [p for p in stats if p.get('src_addr') == self.src_addr and p.get('rel_time') >= duration_start]
-    dst_packets = [p for p in stats if p.get('src_addr') == self.dst_addr and p.get('rel_time') >= duration_start]
+    src_packets = [p for p in stats if p.get('src_addr') == self.src_addr and
+        p.get('rel_time') >= duration_start and p.get('rel_time') <= duration_end]
+    dst_packets = [p for p in stats if p.get('src_addr') == self.dst_addr and
+        p.get('rel_time') >= duration_start and p.get('rel_time') <= duration_end]
 
     src_lens = [p.get('pkt_len') for p in src_packets]
     dst_lens = [-p.get('pkt_len') for p in dst_packets]
@@ -75,12 +81,10 @@ class Flow:
     ax.scatter([p.get('rel_time') for p in dst_packets], dst_lens, label=self.dst_addr)
     ax.axhline(0, color='gray', linestyle=':', label='No payload length (e.g., ACK)')
 
-    ax.set_title('Flow between {}:{} and {}:{}'.format(self.src_addr, self.src_port, self.dst_addr, self.dst_port))
+    ax.set_title('Packets between {} and {} from {} to {} seconds'.format(self.src_addr, self.dst_addr, duration_start, duration_end))
     ax.set_xlabel('Relative duration (seconds)')
     ax.set_ylabel('Packet length (bytes)')
-    ax.legend(loc=4)
+    ax.legend(loc=4, title='Sender of Packet')
 
-    ticks = ax.get_yticks()
-    ax.set_yticklabels([abs(y) for y in ticks])
-
+    ax.yaxis.set_major_formatter(ticker.FuncFormatter(lambda x, pos: '{}'.format(abs(x))))
     return (fig, ax)
