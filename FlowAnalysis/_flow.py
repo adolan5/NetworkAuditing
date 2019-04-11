@@ -51,11 +51,12 @@ class Flow:
       pkt_stats = {}
       frame_info = p.get('_source').get('layers').get('frame')
       ip_info = p.get('_source').get('layers').get('ip')
+      tcp_info = p.get('_source').get('layers').get('tcp')
 
       pkt_stats['src_addr'] = ip_info.get('ip.src')
       pkt_stats['dst_addr'] = ip_info.get('ip.dst')
-      pkt_stats['pkt_len'] = frame_info.get('frame.len')
-      pkt_stats['timestamp'] = float(frame_info.get('frame.time_epoch'))
+      pkt_stats['pkt_len'] = int(tcp_info.get('tcp.len'))
+      pkt_stats['rel_time'] = float(frame_info.get('frame.time_epoch')) - self.get_start_end_times()[0]
       stats.append(pkt_stats)
 
     return stats
