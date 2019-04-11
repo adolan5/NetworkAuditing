@@ -73,6 +73,7 @@ class Flow:
     fig, ax = plt.subplots(figsize=(15,10))
     ax.scatter([p.get('rel_time') for p in src_packets], src_lens, label=self.src_addr)
     ax.scatter([p.get('rel_time') for p in dst_packets], dst_lens, label=self.dst_addr)
+    ax.axhline(0, color='gray', linestyle=':', label='No payload length (e.g., ACK)')
 
     ax.set_title('Flow between {}:{} and {}:{}'.format(self.src_addr, self.src_port, self.dst_addr, self.dst_port))
     ax.set_xlabel('Relative duration (seconds)')
