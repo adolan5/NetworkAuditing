@@ -1,4 +1,5 @@
 import statistics
+from matplotlib import pyplot as plt
 
 class Flow:
   """Simple representation of a flow.
@@ -60,3 +61,23 @@ class Flow:
       stats.append(pkt_stats)
 
     return stats
+
+  def get_packets_graph(self, duration_start=0):
+    stats = self.export_packet_stats()
+    src_packets = [p for p in stats if p.get('src_addr') == self.src_addr and p.get('rel_time') >= duration_start]
+    dst_packets = [p for p in stats if p.get('src_addr') == self.dst_addr and p.get('rel_time') >= duration_start]
+
+    src_lens = [p.get('pkt_len') for p in src_packets]
+    dst_lens = [-p.get('pkt_len') for p in dst_packets]
+
+    fig, ax = plt.subplots(figsize=(15,10))
+    ax.scatter([p.get('rel_time') for p in src_packets], src_lens)
+    ax.scatter([p.get('rel_time') for p in dst_packets], dst_lens)
+
+    ax.set_xlabel('Relative duration (seconds)')
+    ax.set_ylabel('Packet length (bytes)')
+
+    ticks = ax.get_yticks()
+    ax.set_yticklabels([abs(y) for y in ticks])
+
+    return (fig, ax)
