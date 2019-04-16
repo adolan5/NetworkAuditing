@@ -1,4 +1,5 @@
-import statistics
+from scipy import stats
+import numpy as np
 from matplotlib import pyplot as plt
 from matplotlib import ticker
 
@@ -36,7 +37,7 @@ class Flow:
 
   def get_avg_length(self):
     lens = [int(p.get('_source').get('layers').get('frame').get('frame.len')) for p in self.packets]
-    return statistics.mean(lens)
+    return stats.tmean(lens)
 
   def get_bitrate(self):
     duration = self.get_duration()
@@ -47,8 +48,28 @@ class Flow:
     except:
       return 0
 
+  def get_aggregate_stats(self, duration_start=0, duration_end=None):
+    if duration_end is None:
+      duration_end = self.get_duration()
+
+    pkt_stats = self.export_packet_stats()
+    filtered_stats = [p for p in pkt_stats if p.get('rel_time') >= duration_start and p.get('rel_time') <= duration_end]
+    pkts_no_acks = [p for p in filtered_stats if not (p.get('is_ack') and p.get('pkt_len') == 0)]
+
+    src_lens = [p.get('pkt_len') for p in pkts_no_acks if p.get('src_addr') == self.src_addr]
+    dst_lens = [p.get('pkt_len') for p in pkts_no_acks if p.get('src_addr') == self.dst_addr]
+    aggregate_stats = {
+        'mode_src_len': stats.mode(src_lens)[0][0] if src_lens else np.nan,
+        'mode_dst_len': stats.mode(dst_lens)[0][0] if dst_lens else np.nan,
+        'avg_src_len': stats.tmean(src_lens),
+        'avg_dst_len': stats.tmean(dst_lens),
+        'max_src_len': max(src_lens),
+        'max_dst_len': max(dst_lens)
+        }
+    return aggregate_stats
+
   def export_packet_stats(self):
-    stats = []
+    all_stats = []
     for p in self.packets:
       pkt_stats = {}
       frame_info = p.get('_source').get('layers').get('frame')
@@ -59,18 +80,19 @@ class Flow:
       pkt_stats['dst_addr'] = ip_info.get('ip.dst')
       pkt_stats['pkt_len'] = int(tcp_info.get('tcp.len'))
       pkt_stats['rel_time'] = float(frame_info.get('frame.time_epoch')) - self.get_start_end_times()[0]
-      stats.append(pkt_stats)
+      pkt_stats['is_ack'] = (tcp_info.get('tcp.flags_tree').get('tcp.flags.ack') == '1')
+      all_stats.append(pkt_stats)
 
-    return stats
+    return all_stats
 
   def get_packets_graph(self, duration_start=0, duration_end=None):
     if duration_end is None:
       duration_end = self.get_duration()
 
-    stats = self.export_packet_stats()
-    src_packets = [p for p in stats if p.get('src_addr') == self.src_addr and
+    pkt_stats = self.export_packet_stats()
+    src_packets = [p for p in pkt_stats if p.get('src_addr') == self.src_addr and
         p.get('rel_time') >= duration_start and p.get('rel_time') <= duration_end]
-    dst_packets = [p for p in stats if p.get('src_addr') == self.dst_addr and
+    dst_packets = [p for p in pkt_stats if p.get('src_addr') == self.dst_addr and
         p.get('rel_time') >= duration_start and p.get('rel_time') <= duration_end]
 
     src_lens = [p.get('pkt_len') for p in src_packets]
