@@ -58,6 +58,7 @@ class Flow:
 
     src_lens = [p.get('pkt_len') for p in pkts_no_acks if p.get('src_addr') == self.src_addr]
     dst_lens = [p.get('pkt_len') for p in pkts_no_acks if p.get('src_addr') == self.dst_addr]
+
     aggregate_stats = {
         'mode_src_len': stats.mode(src_lens)[0][0] if src_lens else np.nan,
         'mode_dst_len': stats.mode(dst_lens)[0][0] if dst_lens else np.nan,
@@ -84,6 +85,17 @@ class Flow:
       all_stats.append(pkt_stats)
 
     return all_stats
+
+  def separate_packets_by_interaction(self, packet_stats, sep_time=0.5):
+    interactions = []
+    current_interaction = []
+    for i, p in enumerate(packet_stats):
+      current_interaction.append(p)
+      delta = packet_stats[(i + 1) % len(packet_stats)].get('rel_time') - p.get('rel_time')
+      if delta > sep_time or i == (len(packet_stats) - 1):
+        interactions.append(current_interaction)
+        current_interaction = []
+    return interactions
 
   def get_packets_graph(self, duration_start=0, duration_end=None):
     if duration_end is None:
