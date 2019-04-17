@@ -16,6 +16,7 @@ class Flow:
 
     self.is_open = True
     self.packets = []
+    self.packet_stats = None
 
   def __repr__(self):
     return '<Flow ({}:{} <--> {}:{}) of {} packets; Open: {}>'.format(self.src_addr, self.src_port,
@@ -35,10 +36,6 @@ class Flow:
     start_time, end_time = self.get_start_end_times()
     return end_time - start_time
 
-  def get_avg_length(self):
-    lens = [int(p.get('_source').get('layers').get('frame').get('frame.len')) for p in self.packets]
-    return stats.tmean(lens)
-
   def get_bitrate(self):
     duration = self.get_duration()
     aggregate_bytes = sum([float(p.get('_source').get('layers').get('frame').get('frame.len')) for p in self.packets])
@@ -52,12 +49,14 @@ class Flow:
     if duration_end is None:
       duration_end = self.get_duration()
 
-    pkt_stats = self.export_packet_stats()
-    filtered_stats = [p for p in pkt_stats if p.get('rel_time') >= duration_start and p.get('rel_time') <= duration_end]
-    pkts_no_acks = [p for p in filtered_stats if not (p.get('is_ack') and p.get('pkt_len') == 0)]
+    pkt_stats = [p for p in self._get_packet_stats() if p.get('rel_time') >= duration_start and p.get('rel_time') <= duration_end]
+    pkts_no_acks = [p for p in pkt_stats if not (p.get('is_ack') and p.get('pkt_len') == 0)]
 
     src_lens = [p.get('pkt_len') for p in pkts_no_acks if p.get('src_addr') == self.src_addr]
     dst_lens = [p.get('pkt_len') for p in pkts_no_acks if p.get('src_addr') == self.dst_addr]
+
+    interactions = self.get_packet_interactions()
+    int_durations = [i[-1].get('rel_time') - i[0].get('rel_time') for i in interactions]
 
     aggregate_stats = {
         'mode_src_len': stats.mode(src_lens)[0][0] if src_lens else np.nan,
@@ -65,11 +64,16 @@ class Flow:
         'avg_src_len': stats.tmean(src_lens),
         'avg_dst_len': stats.tmean(dst_lens),
         'max_src_len': max(src_lens),
-        'max_dst_len': max(dst_lens)
+        'max_dst_len': max(dst_lens),
+        'num_interactions': len(interactions),
+        'avg_interaction_duration': stats.tmean(int_durations)
         }
     return aggregate_stats
 
-  def export_packet_stats(self):
+  def _get_packet_stats(self):
+    if self.packet_stats:
+      return self.packet_stats
+
     all_stats = []
     for p in self.packets:
       pkt_stats = {}
@@ -83,10 +87,11 @@ class Flow:
       pkt_stats['rel_time'] = float(frame_info.get('frame.time_epoch')) - self.get_start_end_times()[0]
       pkt_stats['is_ack'] = (tcp_info.get('tcp.flags_tree').get('tcp.flags.ack') == '1')
       all_stats.append(pkt_stats)
-
+      self.packet_stats = all_stats
     return all_stats
 
-  def separate_packets_by_interaction(self, packet_stats, sep_time=0.5):
+  def get_packet_interactions(self, sep_time=0.5):
+    packet_stats = self._get_packet_stats()
     interactions = []
     current_interaction = []
     for i, p in enumerate(packet_stats):
@@ -101,7 +106,7 @@ class Flow:
     if duration_end is None:
       duration_end = self.get_duration()
 
-    pkt_stats = self.export_packet_stats()
+    pkt_stats = self._get_packet_stats()
     src_packets = [p for p in pkt_stats if p.get('src_addr') == self.src_addr and
         p.get('rel_time') >= duration_start and p.get('rel_time') <= duration_end]
     dst_packets = [p for p in pkt_stats if p.get('src_addr') == self.dst_addr and
