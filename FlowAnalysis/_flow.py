@@ -57,8 +57,8 @@ class Flow:
     if duration_end is None:
       duration_end = self.get_duration()
 
-    pkt_stats = [p for p in self._get_packet_stats() if p.get('rel_time') >= duration_start and p.get('rel_time') <= duration_end]
-    pkts_no_acks = [p for p in pkt_stats if not (p.get('is_ack') and p.get('pkt_len') == 0)]
+    filtered_stats = [p for p in self.packet_stats if p.get('rel_time') >= duration_start and p.get('rel_time') <= duration_end]
+    pkts_no_acks = [p for p in filtered_stats if not (p.get('is_ack') and p.get('pkt_len') == 0)]
 
     src_lens = [p.get('pkt_len') for p in pkts_no_acks if p.get('src_addr') == self.src_addr]
     dst_lens = [p.get('pkt_len') for p in pkts_no_acks if p.get('src_addr') == self.dst_addr]
@@ -92,13 +92,12 @@ class Flow:
     return pkt_stats
 
   def get_packet_interactions(self, sep_time=0.5):
-    packet_stats = self._get_packet_stats()
     interactions = []
     current_interaction = []
-    for i, p in enumerate(packet_stats):
+    for i, p in enumerate(self.packet_stats):
       current_interaction.append(p)
-      delta = packet_stats[(i + 1) % len(packet_stats)].get('rel_time') - p.get('rel_time')
-      if delta > sep_time or i == (len(packet_stats) - 1):
+      delta = self.packet_stats[(i + 1) % len(self.packet_stats)].get('rel_time') - p.get('rel_time')
+      if delta > sep_time or i == (len(self.packet_stats) - 1):
         interactions.append(current_interaction)
         current_interaction = []
     return interactions
@@ -107,10 +106,9 @@ class Flow:
     if duration_end is None:
       duration_end = self.get_duration()
 
-    pkt_stats = self._get_packet_stats()
-    src_packets = [p for p in pkt_stats if p.get('src_addr') == self.src_addr and
+    src_packets = [p for p in self.packet_stats if p.get('src_addr') == self.src_addr and
         p.get('rel_time') >= duration_start and p.get('rel_time') <= duration_end]
-    dst_packets = [p for p in pkt_stats if p.get('src_addr') == self.dst_addr and
+    dst_packets = [p for p in self.packet_stats if p.get('src_addr') == self.dst_addr and
         p.get('rel_time') >= duration_start and p.get('rel_time') <= duration_end]
 
     src_lens = [p.get('pkt_len') for p in src_packets]

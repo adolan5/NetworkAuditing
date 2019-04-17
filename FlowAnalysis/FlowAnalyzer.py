@@ -64,4 +64,4 @@ class FlowAnalyzer:
       flow_to_append_to = Flow()
       flow_collection.append(flow_to_append_to)
 
-    flow_to_append_to.packets.append(pkt)
+    flow_to_append_to.append(pkt)
