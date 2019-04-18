@@ -64,7 +64,7 @@ class Flow:
     src_lens = [p.get('pkt_len') for p in pkts_no_acks if p.get('src_addr') == self.src_addr]
     dst_lens = [p.get('pkt_len') for p in pkts_no_acks if p.get('src_addr') == self.dst_addr]
 
-    interactions = self.get_packet_interactions(filtered_stats)
+    interactions = self.get_packet_interactions(duration_start, duration_end)
     int_durations = [i[-1].get('rel_time') - i[0].get('rel_time') for i in interactions]
 
     aggregate_stats = {
@@ -95,13 +95,17 @@ class Flow:
     pkt_stats['is_ack'] = (tcp_info.get('tcp.flags_tree').get('tcp.flags.ack') == '1')
     return pkt_stats
 
-  def get_packet_interactions(self, stats, sep_time=0.5):
+  def get_packet_interactions(self, duration_start=0, duration_end=None, sep_time=0.5):
+    if duration_end is None:
+      duration_end = self.get_duration()
+    filtered_stats = self._duration_filter(duration_start, duration_end)
+
     interactions = []
     current_interaction = []
-    for i, p in enumerate(stats):
+    for i, p in enumerate(filtered_stats):
       current_interaction.append(p)
-      delta = stats[(i + 1) % len(stats)].get('rel_time') - p.get('rel_time')
-      if delta > sep_time or i == (len(stats) - 1):
+      delta = filtered_stats[(i + 1) % len(filtered_stats)].get('rel_time') - p.get('rel_time')
+      if delta > sep_time or i == (len(filtered_stats) - 1):
         interactions.append(current_interaction)
         current_interaction = []
     return interactions
@@ -124,24 +128,18 @@ class Flow:
     ax.legend(loc=4, title='Sender of Packet')
 
     ax.yaxis.set_major_formatter(ticker.FuncFormatter(lambda x, pos: '{}'.format(abs(x))))
-    for i in self._get_interaction_highlight(filtered_packets):
-      ax.axvspan(i[0], i[1]).set_alpha(0.5)
+    for i in self.get_packet_interactions(duration_start, duration_end):
+      hl_dims = self._get_interaction_highlight(i)
+      ax.axvspan(hl_dims[0], hl_dims[1]).set_alpha(0.5)
     return (fig, ax)
 
-  def _get_interaction_highlight(self, stats):
-    interactions = self.get_packet_interactions(stats)
-    boxes = []
-    for i in interactions:
-      min_time = min([p.get('rel_time') for p in i])
-      max_time = max([p.get('rel_time') for p in i])
-      duration = max_time - min_time
-      print((min_time, max_time))
-      min_time = min_time - (0.01 * self.get_duration())
-      max_time = max_time + (0.01 * self.get_duration())
-      print((min_time, max_time))
-      boxes.append((min_time, max_time))
-
-    return boxes
+  def _get_interaction_highlight(self, interaction):
+    min_time = min([p.get('rel_time') for p in interaction])
+    max_time = max([p.get('rel_time') for p in interaction])
+    duration = max_time - min_time
+    min_time = min_time - (0.01 * self.get_duration())
+    max_time = max_time + (0.01 * self.get_duration())
+    return (min_time, max_time)
 
   def _duration_filter(self, duration_start=0, duration_end=None):
     if duration_end is None:
