@@ -74,7 +74,10 @@ class Flow:
         'max_src_len': max(src_lens),
         'max_dst_len': max(dst_lens),
         'num_interactions': len(interactions),
-        'avg_interaction_duration': stats.tmean(int_durations)
+        'avg_interaction_duration': stats.tmean(int_durations),
+        'max_interaction_duration': max(int_durations),
+        'min_interaction_duration': min(int_durations),
+        'overall_bitrate': self.get_bitrate()
         }
     return aggregate_stats
 
