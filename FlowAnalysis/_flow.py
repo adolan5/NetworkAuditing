@@ -58,13 +58,13 @@ class Flow:
     if duration_end is None:
       duration_end = self.get_duration()
 
-    filtered_stats = [p for p in self.packet_stats if p.get('rel_time') >= duration_start and p.get('rel_time') <= duration_end]
+    filtered_stats = self._duration_filter(duration_start, duration_end)
     pkts_no_acks = [p for p in filtered_stats if not (p.get('is_ack') and p.get('pkt_len') == 0)]
 
     src_lens = [p.get('pkt_len') for p in pkts_no_acks if p.get('src_addr') == self.src_addr]
     dst_lens = [p.get('pkt_len') for p in pkts_no_acks if p.get('src_addr') == self.dst_addr]
 
-    interactions = self.get_packet_interactions()
+    interactions = self.get_packet_interactions(filtered_stats)
     int_durations = [i[-1].get('rel_time') - i[0].get('rel_time') for i in interactions]
 
     aggregate_stats = {
@@ -95,26 +95,21 @@ class Flow:
     pkt_stats['is_ack'] = (tcp_info.get('tcp.flags_tree').get('tcp.flags.ack') == '1')
     return pkt_stats
 
-  def get_packet_interactions(self, sep_time=0.5):
+  def get_packet_interactions(self, stats, sep_time=0.5):
     interactions = []
     current_interaction = []
-    for i, p in enumerate(self.packet_stats):
+    for i, p in enumerate(stats):
       current_interaction.append(p)
-      delta = self.packet_stats[(i + 1) % len(self.packet_stats)].get('rel_time') - p.get('rel_time')
-      if delta > sep_time or i == (len(self.packet_stats) - 1):
+      delta = stats[(i + 1) % len(stats)].get('rel_time') - p.get('rel_time')
+      if delta > sep_time or i == (len(stats) - 1):
         interactions.append(current_interaction)
         current_interaction = []
     return interactions
 
   def get_packets_graph(self, duration_start=0, duration_end=None):
-    if duration_end is None:
-      duration_end = self.get_duration()
-
-    src_packets = [p for p in self.packet_stats if p.get('src_addr') == self.src_addr and
-        p.get('rel_time') >= duration_start and p.get('rel_time') <= duration_end]
-    dst_packets = [p for p in self.packet_stats if p.get('src_addr') == self.dst_addr and
-        p.get('rel_time') >= duration_start and p.get('rel_time') <= duration_end]
-
+    filtered_packets = self._duration_filter(duration_start, duration_end)
+    src_packets = [p for p in filtered_packets if p.get('src_addr') == self.src_addr]
+    dst_packets = [p for p in filtered_packets if p.get('src_addr') == self.dst_addr]
     src_lens = [p.get('pkt_len') for p in src_packets]
     dst_lens = [-p.get('pkt_len') for p in dst_packets]
 
@@ -129,12 +124,12 @@ class Flow:
     ax.legend(loc=4, title='Sender of Packet')
 
     ax.yaxis.set_major_formatter(ticker.FuncFormatter(lambda x, pos: '{}'.format(abs(x))))
-    for i in self._get_interaction_patches():
+    for i in self._get_interaction_highlight(filtered_packets):
       ax.axvspan(i[0], i[1]).set_alpha(0.5)
     return (fig, ax)
 
-  def _get_interaction_patches(self):
-    interactions = self.get_packet_interactions()
+  def _get_interaction_highlight(self, stats):
+    interactions = self.get_packet_interactions(stats)
     boxes = []
     for i in interactions:
       min_time = min([p.get('rel_time') for p in i])
@@ -147,3 +142,8 @@ class Flow:
       boxes.append((min_time, max_time))
 
     return boxes
+
+  def _duration_filter(self, duration_start=0, duration_end=None):
+    if duration_end is None:
+      duration_end = self.get_duration()
+    return [p for p in self.packet_stats if p.get('rel_time') >= duration_start and p.get('rel_time') <= duration_end]
