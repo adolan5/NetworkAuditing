@@ -110,7 +110,7 @@ class Flow:
         current_interaction = []
     return interactions
 
-  def get_packets_graph(self, duration_start=0, duration_end=None):
+  def get_packets_graph(self, duration_start=0, duration_end=None, draw_highlights=True):
     filtered_packets = self._duration_filter(duration_start, duration_end)
     src_packets = [p for p in filtered_packets if p.get('src_addr') == self.src_addr]
     dst_packets = [p for p in filtered_packets if p.get('src_addr') == self.dst_addr]
@@ -128,17 +128,18 @@ class Flow:
     ax.legend(loc=4, title='Sender of Packet')
 
     ax.yaxis.set_major_formatter(ticker.FuncFormatter(lambda x, pos: '{}'.format(abs(x))))
-    for i in self.get_packet_interactions(duration_start, duration_end):
-      hl_dims = self._get_interaction_highlight(i)
-      ax.axvspan(hl_dims[0], hl_dims[1]).set_alpha(0.5)
+    if draw_highlights:
+      for i in self.get_packet_interactions(duration_start, duration_end):
+        hl_dims = self._get_interaction_highlight(i)
+        ax.axvspan(hl_dims[0], hl_dims[1]).set_alpha(0.5)
     return (fig, ax)
 
   def _get_interaction_highlight(self, interaction):
     min_time = min([p.get('rel_time') for p in interaction])
     max_time = max([p.get('rel_time') for p in interaction])
     duration = max_time - min_time
-    min_time = min_time - (0.01 * self.get_duration())
-    max_time = max_time + (0.01 * self.get_duration())
+    min_time = min_time - (0.005 * self.get_duration())
+    max_time = max_time + (0.005 * self.get_duration())
     return (min_time, max_time)
 
   def _duration_filter(self, duration_start=0, duration_end=None):
