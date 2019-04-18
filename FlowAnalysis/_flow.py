@@ -45,15 +45,6 @@ class Flow:
     start_time, end_time = self.get_start_end_times()
     return end_time - start_time
 
-  def get_bitrate(self):
-    duration = self.get_duration()
-    aggregate_bytes = sum([float(p.get('_source').get('layers').get('frame').get('frame.len')) for p in self.packets])
-
-    try:
-      return (aggregate_bytes / duration) * 8
-    except:
-      return 0
-
   def get_aggregate_stats(self, duration_start=0, duration_end=None):
     if duration_end is None:
       duration_end = self.get_duration()
@@ -67,6 +58,8 @@ class Flow:
     interactions = self.get_packet_interactions(duration_start, duration_end)
     int_durations = [i[-1].get('rel_time') - i[0].get('rel_time') for i in interactions]
 
+    total_bytes = sum([p.get('pkt_len') for p in filtered_stats])
+
     aggregate_stats = {
         'mode_src_len': stats.mode(src_lens)[0][0] if src_lens else np.nan,
         'mode_dst_len': stats.mode(dst_lens)[0][0] if dst_lens else np.nan,
@@ -78,7 +71,7 @@ class Flow:
         'avg_interaction_duration': stats.tmean(int_durations),
         'max_interaction_duration': max(int_durations),
         'min_interaction_duration': min(int_durations),
-        'overall_bitrate': self.get_bitrate()
+        'total_bytes': total_bytes
         }
     return aggregate_stats
 
