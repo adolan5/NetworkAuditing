@@ -2,6 +2,7 @@ from scipy import stats
 import numpy as np
 from matplotlib import pyplot as plt
 from matplotlib import ticker
+from matplotlib.collections import PatchCollection
 
 class Flow:
   """Simple representation of a flow.
@@ -128,4 +129,21 @@ class Flow:
     ax.legend(loc=4, title='Sender of Packet')
 
     ax.yaxis.set_major_formatter(ticker.FuncFormatter(lambda x, pos: '{}'.format(abs(x))))
+    for i in self._get_interaction_patches():
+      ax.axvspan(i[0], i[1]).set_alpha(0.5)
     return (fig, ax)
+
+  def _get_interaction_patches(self):
+    interactions = self.get_packet_interactions()
+    boxes = []
+    for i in interactions:
+      min_time = min([p.get('rel_time') for p in i])
+      max_time = max([p.get('rel_time') for p in i])
+      duration = max_time - min_time
+      print((min_time, max_time))
+      min_time = min_time - (0.01 * self.get_duration())
+      max_time = max_time + (0.01 * self.get_duration())
+      print((min_time, max_time))
+      boxes.append((min_time, max_time))
+
+    return boxes
