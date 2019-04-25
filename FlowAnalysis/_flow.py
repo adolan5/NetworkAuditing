@@ -3,21 +3,24 @@ import numpy as np
 from matplotlib import pyplot as plt
 from matplotlib import ticker
 from matplotlib.collections import PatchCollection
+from FlowAnalysis._interaction import Interaction
 
 class Flow:
   """Simple representation of a flow.
   Defined as a number of packets that share particular properties, per RFC 3917.
   """
 
-  def __init__(self, src, dst, src_port, dst_port):
+  def __init__(self, src, dst, src_port, dst_port, interaction_sep_time=0.5):
     self.src_addr = src
     self.dst_addr = dst
     self.src_port = src_port
     self.dst_port = dst_port
+    self.interaction_sep_time=interaction_sep_time
 
     self.is_open = True
-    self.packets = []
+    self.interactions = []
     self.packet_stats = []
+    self.current_interaction = Interaction()
 
   def __repr__(self):
     return '<Flow ({}:{} <--> {}:{}) of {} packets; Open: {}>'.format(self.src_addr, self.src_port,
@@ -28,8 +31,14 @@ class Flow:
       yield p
 
   def append(self, packet):
-    self.packets.append(packet)
-    self.packet_stats.append(self._get_stats_for_packet(packet))
+    stat = self._get_stats_for_packet(packet)
+
+    previous_packet = self.current_interaction[-1] if self.current_interaction else None
+    if previous_packet and (stat.get('rel_time') - previous_packet.get('rel_time')) > self.interaction_sep_time:
+      self.current_interaction = Interaction()
+
+    self.packet_stats.append(stat)
+    self.current_interaction.append(stat)
 
   def get_start_end_times(self):
     try:
