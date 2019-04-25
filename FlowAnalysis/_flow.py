@@ -65,7 +65,6 @@ class Flow:
 
     src_lens = [p.get('pkt_len') for p in pkts_no_acks if p.get('src_addr') == self.src_addr]
     dst_lens = [p.get('pkt_len') for p in pkts_no_acks if p.get('src_addr') == self.dst_addr]
-
     int_durations = [i[-1].get('rel_time') - i[0].get('rel_time') for i in filtered_interactions]
 
     total_bytes = sum([p.get('pkt_len') for p in filtered_stats])
@@ -73,14 +72,14 @@ class Flow:
     aggregate_stats = {
         'mode_src_len': stats.mode(src_lens)[0][0] if src_lens else np.nan,
         'mode_dst_len': stats.mode(dst_lens)[0][0] if dst_lens else np.nan,
-        'avg_src_len': stats.tmean(src_lens),
-        'avg_dst_len': stats.tmean(dst_lens),
-        'max_src_len': max(src_lens),
-        'max_dst_len': max(dst_lens),
+        'avg_src_len': stats.tmean(src_lens) if src_lens else np.nan,
+        'avg_dst_len': stats.tmean(dst_lens) if dst_lens else np.nan,
+        'max_src_len': max(src_lens) if src_lens else 0,
+        'max_dst_len': max(dst_lens)if dst_lens else 0,
         'num_interactions': len(filtered_interactions),
-        'avg_interaction_duration': stats.tmean(int_durations),
-        'max_interaction_duration': max(int_durations),
-        'min_interaction_duration': min(int_durations),
+        'avg_interaction_duration': stats.tmean(int_durations) if int_durations else 0,
+        'max_interaction_duration': max(int_durations) if int_durations else 0,
+        'min_interaction_duration': min(int_durations) if int_durations else 0,
         'total_bytes': total_bytes
         }
     return aggregate_stats
