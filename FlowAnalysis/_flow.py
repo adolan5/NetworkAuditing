@@ -65,7 +65,7 @@ class Flow:
 
     src_lens = [p.get('pkt_len') for p in pkts_no_acks if p.get('src_addr') == self.src_addr]
     dst_lens = [p.get('pkt_len') for p in pkts_no_acks if p.get('src_addr') == self.dst_addr]
-    int_durations = [i[-1].get('rel_time') - i[0].get('rel_time') for i in filtered_interactions]
+    int_durations = [i.get_duration() for i in filtered_interactions]
 
     total_bytes = sum([p.get('pkt_len') for p in filtered_stats])
 
