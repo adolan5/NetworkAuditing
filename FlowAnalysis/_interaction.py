@@ -1,3 +1,5 @@
+from scipy import stats
+
 class Interaction:
   def __init__(self, pkt_stats=None):
     self.packet_stats = pkt_stats if pkt_stats else []
@@ -29,3 +31,18 @@ class Interaction:
 
   def get_duration(self):
     return self.packet_stats[-1].get('rel_time') - self.packet_stats[0].get('rel_time')
+
+  def get_aggregate_stats(self):
+    lens_by_src = {}
+    for p in self.packet_stats:
+      lens_by_src.setdefault(p.get('src_addr'), []).append(p.get('pkt_len'))
+
+    total_bytes = sum([l for sl in lens_by_src.values() for l in sl])
+
+    aggregate_stats = {
+        'avg_lens': {k: stats.tmean(v) for k,v in lens_by_src.items()},
+        'max_lens': {k: max(v) for k,v in lens_by_src.items()},
+        'duration': self.get_duration(),
+        'total_bytes': total_bytes
+        }
+    return aggregate_stats
