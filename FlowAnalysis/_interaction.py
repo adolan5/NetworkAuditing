@@ -35,7 +35,8 @@ class Interaction:
   def get_aggregate_stats(self):
     lens_by_src = {}
     for p in self.packet_stats:
-      lens_by_src.setdefault(p.get('src_addr'), []).append(p.get('pkt_len'))
+      if not (p.get('is_ack') and p.get('pkt_len') == 0):
+        lens_by_src.setdefault(p.get('src_addr'), []).append(p.get('pkt_len'))
 
     total_bytes = sum([l for sl in lens_by_src.values() for l in sl])
 
