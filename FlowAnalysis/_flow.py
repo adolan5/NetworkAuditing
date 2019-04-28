@@ -15,7 +15,7 @@ class Flow:
     self.dst_addr = dst
     self.src_port = src_port
     self.dst_port = dst_port
-    self.interaction_sep_time=interaction_sep_time
+    self._interaction_sep_time=interaction_sep_time
 
     self.is_open = True
     self.packets = []
@@ -35,7 +35,7 @@ class Flow:
     stat = self._get_stats_for_packet(packet)
 
     previous_packet = self.current_interaction[-1] if self.current_interaction else None
-    if previous_packet and (stat.get('rel_time') - previous_packet.get('rel_time')) > self.interaction_sep_time:
+    if previous_packet and (stat.get('rel_time') - previous_packet.get('rel_time')) > self._interaction_sep_time:
       self.current_interaction = Interaction()
       self.interactions.append(self.current_interaction)
 
@@ -84,19 +84,6 @@ class Flow:
         }
     return aggregate_stats
 
-  def _get_stats_for_packet(self, packet):
-    pkt_stats = {}
-    frame_info = packet.get('_source').get('layers').get('frame')
-    ip_info = packet.get('_source').get('layers').get('ip')
-    tcp_info = packet.get('_source').get('layers').get('tcp')
-
-    pkt_stats['src_addr'] = ip_info.get('ip.src')
-    pkt_stats['dst_addr'] = ip_info.get('ip.dst')
-    pkt_stats['pkt_len'] = int(tcp_info.get('tcp.len'))
-    pkt_stats['rel_time'] = float(frame_info.get('frame.time_epoch')) - self.get_start_end_times()[0]
-    pkt_stats['is_ack'] = (tcp_info.get('tcp.flags_tree').get('tcp.flags.ack') == '1')
-    return pkt_stats
-
   def get_packet_stats(self):
     return [p for itx in self.interactions for p in list(itx)]
 
@@ -124,6 +111,19 @@ class Flow:
         hl_dims = self._get_interaction_highlight(i)
         ax.axvspan(hl_dims[0], hl_dims[1]).set_alpha(0.5)
     return (fig, ax)
+
+  def _get_stats_for_packet(self, packet):
+    pkt_stats = {}
+    frame_info = packet.get('_source').get('layers').get('frame')
+    ip_info = packet.get('_source').get('layers').get('ip')
+    tcp_info = packet.get('_source').get('layers').get('tcp')
+
+    pkt_stats['src_addr'] = ip_info.get('ip.src')
+    pkt_stats['dst_addr'] = ip_info.get('ip.dst')
+    pkt_stats['pkt_len'] = int(tcp_info.get('tcp.len'))
+    pkt_stats['rel_time'] = float(frame_info.get('frame.time_epoch')) - self.get_start_end_times()[0]
+    pkt_stats['is_ack'] = (tcp_info.get('tcp.flags_tree').get('tcp.flags.ack') == '1')
+    return pkt_stats
 
   def _get_interaction_highlight(self, interaction):
     min_time = min([p.get('rel_time') for p in interaction])
