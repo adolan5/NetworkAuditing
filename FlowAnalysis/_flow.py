@@ -105,7 +105,8 @@ class Flow:
     ax.scatter([p.get('rel_time') for p in dst_packets], dst_lens, label=self.dst_addr)
     ax.axhline(0, color='gray', linestyle=':', label='No payload length (e.g., ACK)')
 
-    ax.set_title('Packets between {} and {} from {} to {} seconds'.format(self.src_addr, self.dst_addr, duration_start, duration_end))
+    x_limits = ax.get_xlim()
+    ax.set_title('Packets between {} and {} from {:.2f} to {:.2f} seconds'.format(self.src_addr, self.dst_addr, x_limits[0], x_limits[1]))
     ax.set_xlabel('Relative duration (seconds)')
     ax.set_ylabel('Packet length (bytes)')
     ax.legend(loc=4, title='Sender of Packet')
@@ -113,8 +114,7 @@ class Flow:
     ax.yaxis.set_major_formatter(ticker.FuncFormatter(lambda x, pos: '{}'.format(abs(x))))
     if draw_highlights:
       for i in filtered_interactions:
-        hl_dims = self._get_interaction_highlight(i)
-        ax.axvspan(hl_dims[0], hl_dims[1]).set_alpha(0.5)
+        self._add_interaction_highlight(i, ax)
     return ax
 
   def _get_stats_for_packet(self, packet):
@@ -130,13 +130,16 @@ class Flow:
     pkt_stats['is_ack'] = (tcp_info.get('tcp.flags_tree').get('tcp.flags.ack') == '1')
     return pkt_stats
 
-  def _get_interaction_highlight(self, interaction):
+  def _add_interaction_highlight(self, interaction, ax):
+    x_limits = ax.get_xlim()
+    graph_duration = x_limits[1] - x_limits[0]
+
     min_time = min([p.get('rel_time') for p in interaction])
     max_time = max([p.get('rel_time') for p in interaction])
-    duration = max_time - min_time
-    min_time = min_time - (0.005 * self.get_duration())
-    max_time = max_time + (0.005 * self.get_duration())
-    return (min_time, max_time)
+    min_time = min_time - (0.005 * graph_duration)
+    max_time = max_time + (0.005 * graph_duration)
+
+    ax.axvspan(min_time, max_time).set_alpha(0.5)
 
   def _filter_stats(self, duration_start=0, duration_end=None):
     if duration_end is None:
