@@ -87,7 +87,7 @@ class Flow:
   def get_packet_stats(self):
     return [p for itx in self.interactions for p in list(itx)]
 
-  def get_packets_graph(self, duration_start=0, duration_end=None, draw_highlights=True):
+  def get_packets_graph(self, ax=None, duration_start=0, duration_end=None, draw_highlights=True):
     filtered_packets = self._filter_stats(duration_start, duration_end)
     filtered_interactions = self._filter_interactions(duration_start, duration_end)
     src_packets = [p for p in filtered_packets if p.get('src_addr') == self.src_addr]
@@ -95,7 +95,10 @@ class Flow:
     src_lens = [p.get('pkt_len') for p in src_packets]
     dst_lens = [-p.get('pkt_len') for p in dst_packets]
 
-    fig, ax = plt.subplots(figsize=(15,10))
+    # fig, ax = plt.subplots()
+    if ax is None:
+      ax = plt.axes()
+
     ax.scatter([p.get('rel_time') for p in src_packets], src_lens, label=self.src_addr)
     ax.scatter([p.get('rel_time') for p in dst_packets], dst_lens, label=self.dst_addr)
     ax.axhline(0, color='gray', linestyle=':', label='No payload length (e.g., ACK)')
@@ -110,7 +113,7 @@ class Flow:
       for i in filtered_interactions:
         hl_dims = self._get_interaction_highlight(i)
         ax.axvspan(hl_dims[0], hl_dims[1]).set_alpha(0.5)
-    return (fig, ax)
+    return ax
 
   def _get_stats_for_packet(self, packet):
     pkt_stats = {}
