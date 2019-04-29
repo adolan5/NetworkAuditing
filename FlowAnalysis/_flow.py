@@ -76,6 +76,8 @@ class Flow:
         'avg_dst_len': stats.tmean(dst_lens) if dst_lens else np.nan,
         'max_src_len': max(src_lens) if src_lens else 0,
         'max_dst_len': max(dst_lens)if dst_lens else 0,
+        'total_src_bytes': sum(src_lens) if src_lens else 0,
+        'total_dst_bytes': sum(dst_lens) if dst_lens else 0,
         'num_interactions': len(filtered_interactions),
         'avg_interaction_duration': stats.tmean(int_durations) if int_durations else 0,
         'max_interaction_duration': max(int_durations) if int_durations else 0,
