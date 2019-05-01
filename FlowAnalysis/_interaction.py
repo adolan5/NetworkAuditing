@@ -43,6 +43,7 @@ class Interaction:
     aggregate_stats = {
         'avg_lens': {k: stats.tmean(v) for k,v in lens_by_src.items()},
         'max_lens': {k: max(v) for k,v in lens_by_src.items()},
+        'total_lens': {k: sum(v) for k,v in lens_by_src.items()},
         'duration': self.get_duration(),
         'total_bytes': total_bytes
         }
