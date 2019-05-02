@@ -76,6 +76,8 @@ class Flow:
         'avg_dst_len': stats.tmean(dst_lens) if dst_lens else np.nan,
         'max_src_len': max(src_lens) if src_lens else 0,
         'max_dst_len': max(dst_lens)if dst_lens else 0,
+        'total_src_bytes': sum(src_lens) if src_lens else 0,
+        'total_dst_bytes': sum(dst_lens) if dst_lens else 0,
         'num_interactions': len(filtered_interactions),
         'avg_interaction_duration': stats.tmean(int_durations) if int_durations else 0,
         'max_interaction_duration': max(int_durations) if int_durations else 0,
@@ -87,7 +89,7 @@ class Flow:
   def get_packet_stats(self):
     return [p for itx in self.interactions for p in list(itx)]
 
-  def get_packets_graph(self, duration_start=0, duration_end=None, draw_highlights=True):
+  def get_packets_graph(self, ax=None, duration_start=0, duration_end=None, draw_highlights=True):
     filtered_packets = self._filter_stats(duration_start, duration_end)
     filtered_interactions = self._filter_interactions(duration_start, duration_end)
     src_packets = [p for p in filtered_packets if p.get('src_addr') == self.src_addr]
@@ -95,12 +97,16 @@ class Flow:
     src_lens = [p.get('pkt_len') for p in src_packets]
     dst_lens = [-p.get('pkt_len') for p in dst_packets]
 
-    fig, ax = plt.subplots(figsize=(15,10))
+    # fig, ax = plt.subplots()
+    if ax is None:
+      ax = plt.axes()
+
     ax.scatter([p.get('rel_time') for p in src_packets], src_lens, label=self.src_addr)
     ax.scatter([p.get('rel_time') for p in dst_packets], dst_lens, label=self.dst_addr)
     ax.axhline(0, color='gray', linestyle=':', label='No payload length (e.g., ACK)')
 
-    ax.set_title('Packets between {} and {} from {} to {} seconds'.format(self.src_addr, self.dst_addr, duration_start, duration_end))
+    x_limits = ax.get_xlim()
+    ax.set_title('Packets between {} and {} from {:.2f} to {:.2f} seconds'.format(self.src_addr, self.dst_addr, x_limits[0], x_limits[1]))
     ax.set_xlabel('Relative duration (seconds)')
     ax.set_ylabel('Packet length (bytes)')
     ax.legend(loc=4, title='Sender of Packet')
@@ -108,9 +114,8 @@ class Flow:
     ax.yaxis.set_major_formatter(ticker.FuncFormatter(lambda x, pos: '{}'.format(abs(x))))
     if draw_highlights:
       for i in filtered_interactions:
-        hl_dims = self._get_interaction_highlight(i)
-        ax.axvspan(hl_dims[0], hl_dims[1]).set_alpha(0.5)
-    return (fig, ax)
+        self._add_interaction_highlight(i, ax)
+    return ax
 
   def _get_stats_for_packet(self, packet):
     pkt_stats = {}
@@ -125,13 +130,16 @@ class Flow:
     pkt_stats['is_ack'] = (tcp_info.get('tcp.flags_tree').get('tcp.flags.ack') == '1')
     return pkt_stats
 
-  def _get_interaction_highlight(self, interaction):
+  def _add_interaction_highlight(self, interaction, ax):
+    x_limits = ax.get_xlim()
+    graph_duration = x_limits[1] - x_limits[0]
+
     min_time = min([p.get('rel_time') for p in interaction])
     max_time = max([p.get('rel_time') for p in interaction])
-    duration = max_time - min_time
-    min_time = min_time - (0.005 * self.get_duration())
-    max_time = max_time + (0.005 * self.get_duration())
-    return (min_time, max_time)
+    min_time = min_time - (0.005 * graph_duration)
+    max_time = max_time + (0.005 * graph_duration)
+
+    ax.axvspan(min_time, max_time).set_alpha(0.5)
 
   def _filter_stats(self, duration_start=0, duration_end=None):
     if duration_end is None:

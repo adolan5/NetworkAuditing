@@ -35,13 +35,15 @@ class Interaction:
   def get_aggregate_stats(self):
     lens_by_src = {}
     for p in self.packet_stats:
-      lens_by_src.setdefault(p.get('src_addr'), []).append(p.get('pkt_len'))
+      if not (p.get('is_ack') and p.get('pkt_len') == 0):
+        lens_by_src.setdefault(p.get('src_addr'), []).append(p.get('pkt_len'))
 
     total_bytes = sum([l for sl in lens_by_src.values() for l in sl])
 
     aggregate_stats = {
         'avg_lens': {k: stats.tmean(v) for k,v in lens_by_src.items()},
         'max_lens': {k: max(v) for k,v in lens_by_src.items()},
+        'total_lens': {k: sum(v) for k,v in lens_by_src.items()},
         'duration': self.get_duration(),
         'total_bytes': total_bytes
         }
