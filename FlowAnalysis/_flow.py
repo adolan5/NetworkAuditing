@@ -10,11 +10,11 @@ class Flow:
   Defined as a number of packets that share particular properties, per RFC 3917.
   """
 
-  def __init__(self, src, dst, src_port, dst_port, interaction_sep_time=0.5):
-    self.src_addr = src
-    self.dst_addr = dst
-    self.src_port = src_port
-    self.dst_port = dst_port
+  def __init__(self, composite_key, interaction_sep_time=0.5):
+    self.src_addr = composite_key.get('src_addr')
+    self.dst_addr = composite_key.get('dst_addr')
+    self.src_port = composite_key.get('src_port')
+    self.dst_port = composite_key.get('dst_port')
     self._interaction_sep_time=interaction_sep_time
 
     self.is_open = True
