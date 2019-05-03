@@ -14,7 +14,6 @@ class FlowAnalyzer:
     file containing PCAP data, formatted with tshark, or a dictionary of the same format.
     """
     self.flow_map = {}
-    self.tcp_flows = []
 
     if type(data) is str:
       with open(data) as f:
@@ -43,9 +42,8 @@ class FlowAnalyzer:
   def _extract_all_data(self, data):
     for p in data:
       self.append_packet(p)
-    self.tcp_flows = self._get_tcp_flows()
 
-  def _get_tcp_flows(self):
+  def get_tcp_flows(self):
     all_flows = sorted([flow for collection in self.flow_map.values() for flow in collection], key=lambda x: x.get_start_end_times()[0])
     return all_flows
 
