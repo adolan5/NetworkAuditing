@@ -48,8 +48,8 @@ class Flow:
       start = self.packet_stats[0].get('epoch_time')
       end = self.packet_stats[-1].get('epoch_time')
     except IndexError:
-      start = 0
-      end = 0
+      start = None
+      end = None
     return (start, end)
 
   def get_duration(self):
@@ -97,7 +97,7 @@ class Flow:
     pkt_stats['src_addr'] = ip_info.get('ip.src')
     pkt_stats['dst_addr'] = ip_info.get('ip.dst')
     pkt_stats['pkt_len'] = int(tcp_info.get('tcp.len'))
-    pkt_stats['rel_time'] = float(frame_info.get('frame.time_epoch')) - start_time
+    pkt_stats['rel_time'] = (float(frame_info.get('frame.time_epoch')) - start_time) if start_time else 0
     pkt_stats['epoch_time'] = float(frame_info.get('frame.time_epoch'))
     pkt_stats['is_ack'] = (tcp_info.get('tcp.flags_tree').get('tcp.flags.ack') == '1')
     return pkt_stats
