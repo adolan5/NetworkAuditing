@@ -24,7 +24,7 @@ class FlowAnalyzer:
 
   def append_packet(self, pkt):
     if pkt.get('_source').get('layers').get('tcp'):
-      self._append_tcp_packet(pkt)
+      return self._append_tcp_packet(pkt)
 
   def _append_tcp_packet(self, pkt):
     ip_attribs = pkt.get('_source').get('layers').get('ip')
@@ -37,21 +37,7 @@ class FlowAnalyzer:
         'dst_port': tcp_attribs.get('tcp.dstport')
         }
 
-    self._decide_flow_action(composite_tcp_key, pkt)
-
-  def _extract_all_data(self, data):
-    for p in data:
-      self.append_packet(p)
-
-  def get_tcp_flows(self):
-    all_flows = sorted([flow for collection in self.flow_map.values() for flow in collection], key=lambda x: x.get_start_end_times()[0])
-    return all_flows
-
-  def _decide_flow_action(self, composite_key, pkt):
-    flow_collection = self.flow_map.setdefault(frozenset(composite_key.values()), [Flow(composite_key)])
-
-    tcp_attribs = pkt.get('_source').get('layers').get('tcp')
-    ip_attribs = pkt.get('_source').get('layers').get('ip')
+    flow_collection = self.flow_map.setdefault(frozenset(composite_tcp_key.values()), [Flow(composite_tcp_key)])
 
     # TODO: This is a pretty naive way of distinguishing flows. No analysis of sequence numbers
     # involved. Can it be beaten?
@@ -64,7 +50,18 @@ class FlowAnalyzer:
     if is_fin or is_rst:
       flow_to_append_to.is_open = False
     elif not flow_to_append_to.is_open and not is_ack:
-      flow_to_append_to = Flow(composite_key)
+      flow_to_append_to = Flow(composite_tcp_key)
       flow_collection.append(flow_to_append_to)
 
     flow_to_append_to.append(pkt)
+    return flow_to_append_to
+
+  def _extract_all_data(self, data):
+    for p in data:
+      self.append_packet(p)
+
+  def get_tcp_flows(self):
+    all_flows = sorted([flow for collection in self.flow_map.values() for flow in collection], key=lambda x: x.get_start_end_times()[0])
+    return all_flows
+
+  # def _decide_flow_action(self, composite_key, pkt):
