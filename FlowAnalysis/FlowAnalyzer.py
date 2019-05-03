@@ -9,7 +9,7 @@ class FlowAnalyzer:
   different formats.
   """
 
-  def __init__(self, data):
+  def __init__(self, data=None):
     """A FlowAnalyzer may be constructed with a string that represents a relative path to a JSON
     file containing PCAP data, formatted with tshark, or a dictionary of the same format.
     """
@@ -18,31 +18,34 @@ class FlowAnalyzer:
 
     if type(data) is str:
       with open(data) as f:
-        self._raw_data = json.load(f)
-    else:
-      self._raw_data = data
+        raw_data = json.load(f)
+        self._extract_all_data(raw_data)
+    elif data:
+      self._extract_all_data(data)
 
-    self._extract_data()
+  def append_packet(self, pkt):
+    if pkt.get('_source').get('layers').get('tcp'):
+      self._append_tcp_packet(pkt)
 
-  def _extract_data(self):
+  def _append_tcp_packet(self, pkt):
+    ip_attribs = pkt.get('_source').get('layers').get('ip')
+    tcp_attribs = pkt.get('_source').get('layers').get('tcp')
+
+    composite_tcp_key = {
+        'src_addr': ip_attribs.get('ip.src'),
+        'dst_addr': ip_attribs.get('ip.dst'),
+        'src_port': tcp_attribs.get('tcp.srcport'),
+        'dst_port': tcp_attribs.get('tcp.dstport')
+        }
+
+    self._decide_flow_action(composite_tcp_key, pkt)
+
+  def _extract_all_data(self, data):
+    for p in data:
+      self.append_packet(p)
     self.tcp_flows = self._get_tcp_flows()
 
   def _get_tcp_flows(self):
-    all_tcp = [p for p in self._raw_data if p.get('_source').get('layers').get('tcp')]
-
-    for p in all_tcp:
-      tcp_attribs = p.get('_source').get('layers').get('tcp')
-      ip_attribs = p.get('_source').get('layers').get('ip')
-
-      composite_tcp_key = {
-          'src_addr': ip_attribs.get('ip.src'),
-          'dst_addr': ip_attribs.get('ip.dst'),
-          'src_port': tcp_attribs.get('tcp.srcport'),
-          'dst_port': tcp_attribs.get('tcp.dstport')
-          }
-
-      self._decide_flow_action(composite_tcp_key, p)
-
     all_flows = sorted([flow for collection in self.flow_map.values() for flow in collection], key=lambda x: x.get_start_end_times()[0])
     return all_flows
 
