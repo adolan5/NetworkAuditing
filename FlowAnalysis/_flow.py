@@ -62,23 +62,19 @@ class Flow:
 
     filtered_stats = self._filter_stats(duration_start, duration_end)
     filtered_interactions = self._filter_interactions(duration_start, duration_end)
-    pkts_no_acks = [p for p in filtered_stats if not (p.get('is_ack') and p.get('pkt_len') == 0)]
 
-    src_lens = [p.get('pkt_len') for p in pkts_no_acks if p.get('src_addr') == self.src_addr]
-    dst_lens = [p.get('pkt_len') for p in pkts_no_acks if p.get('src_addr') == self.dst_addr]
+    lens_by_src = {}
+    for p in filtered_stats:
+      lens_by_src.setdefault(p.get('src_addr'), []).append(p.get('pkt_len'))
+
     int_durations = [i.get_duration() for i in filtered_interactions]
-
     total_bytes = sum([p.get('pkt_len') for p in filtered_stats])
 
     aggregate_stats = {
-        'mode_src_len': stats.mode(src_lens)[0][0] if src_lens else np.nan,
-        'mode_dst_len': stats.mode(dst_lens)[0][0] if dst_lens else np.nan,
-        'avg_src_len': stats.tmean(src_lens) if src_lens else np.nan,
-        'avg_dst_len': stats.tmean(dst_lens) if dst_lens else np.nan,
-        'max_src_len': max(src_lens) if src_lens else 0,
-        'max_dst_len': max(dst_lens)if dst_lens else 0,
-        'total_src_bytes': sum(src_lens) if src_lens else 0,
-        'total_dst_bytes': sum(dst_lens) if dst_lens else 0,
+        'duration': self.get_duration(),
+        'avg_lens': {k: stats.tmean(v) for k,v in lens_by_src.items()},
+        'max_lens': {k: max(v) for k,v in lens_by_src.items()},
+        'total_by_src': {k: sum(v) for k,v in lens_by_src.items()},
         'num_interactions': len(filtered_interactions),
         'avg_interaction_duration': stats.tmean(int_durations) if int_durations else 0,
         'max_interaction_duration': max(int_durations) if int_durations else 0,
