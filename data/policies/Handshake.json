@@ -1,0 +1,19 @@
+{
+  "description": "Handshake operation",
+  "devices": ["192.168.42.67"],
+  "flow": {
+    "endpoints": ["192.168.42.0/24"]
+  },
+  "interaction": {
+    "max_duration": 2000,
+    "max_total_payload_bytes": 4200,
+    "device": {
+      "max_single_payload_bytes": 1440,
+      "total_sent_bytes": 3000
+    },
+    "endpoint": {
+      "max_single_payload_bytes": 136,
+      "total_sent_bytes": 1100
+    }
+  }
+}
