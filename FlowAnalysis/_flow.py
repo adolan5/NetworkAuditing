@@ -10,29 +10,31 @@ class Flow:
   Defined as a number of packets that share particular properties, per RFC 3917.
   """
 
-  def __init__(self, src, dst, src_port, dst_port, interaction_sep_time=0.5):
-    self.src_addr = src
-    self.dst_addr = dst
-    self.src_port = src_port
-    self.dst_port = dst_port
+  def __init__(self, composite_key, interaction_sep_time=0.5):
+    self.src_addr = composite_key.get('src_addr')
+    self.dst_addr = composite_key.get('dst_addr')
+    self.src_port = composite_key.get('src_port')
+    self.dst_port = composite_key.get('dst_port')
     self._interaction_sep_time=interaction_sep_time
 
     self.is_open = True
     self.packets = []
+    self.packet_stats = []
     self.interactions = [Interaction()]
     self.current_interaction = self.interactions[0]
 
   def __repr__(self):
-    return '<Flow ({}:{} <--> {}:{}) of {} packets; Open: {}>'.format(self.src_addr, self.src_port,
-        self.dst_addr, self.dst_port, len(self.packets), self.is_open)
+    return '<Flow ({}:{} <--> {}:{}) of {} packets>'.format(self.src_addr, self.src_port,
+        self.dst_addr, self.dst_port, len(self.packets))
 
   def __iter__(self):
-    for p in self.get_packet_stats():
+    for p in self.packet_stats:
       yield p
 
   def append(self, packet):
     self.packets.append(packet)
     stat = self._get_stats_for_packet(packet)
+    self.packet_stats.append(stat)
 
     previous_packet = self.current_interaction[-1] if self.current_interaction else None
     if previous_packet and (stat.get('rel_time') - previous_packet.get('rel_time')) > self._interaction_sep_time:
@@ -43,12 +45,11 @@ class Flow:
 
   def get_start_end_times(self):
     try:
-      times = [float(p.get('_source').get('layers').get('frame').get('frame.time_epoch')) for p in self.packets]
-      start = min(times)
-      end = max(times)
-    except ValueError:
-      start = None
-      end = None
+      start = self.packet_stats[0].get('epoch_time')
+      end = self.packet_stats[-1].get('epoch_time')
+    except IndexError:
+      start = 0
+      end = 0
     return (start, end)
 
   def get_duration(self):
@@ -86,9 +87,33 @@ class Flow:
         }
     return aggregate_stats
 
-  def get_packet_stats(self):
-    return [p for itx in self.interactions for p in list(itx)]
+  def _get_stats_for_packet(self, packet):
+    pkt_stats = {}
+    frame_info = packet.get('_source').get('layers').get('frame')
+    ip_info = packet.get('_source').get('layers').get('ip')
+    tcp_info = packet.get('_source').get('layers').get('tcp')
+    start_time = self.get_start_end_times()[0]
 
+    pkt_stats['src_addr'] = ip_info.get('ip.src')
+    pkt_stats['dst_addr'] = ip_info.get('ip.dst')
+    pkt_stats['pkt_len'] = int(tcp_info.get('tcp.len'))
+    pkt_stats['rel_time'] = float(frame_info.get('frame.time_epoch')) - start_time
+    pkt_stats['epoch_time'] = float(frame_info.get('frame.time_epoch'))
+    pkt_stats['is_ack'] = (tcp_info.get('tcp.flags_tree').get('tcp.flags.ack') == '1')
+    return pkt_stats
+
+  def _filter_stats(self, duration_start=0, duration_end=None):
+    if duration_end is None:
+      duration_end = self.get_duration()
+    return [p for p in self.packet_stats if p.get('rel_time') >= duration_start and p.get('rel_time') <= duration_end]
+
+  def _filter_interactions(self, duration_start=0, duration_end=None):
+    if duration_end is None:
+      duration_end = self.get_duration()
+    filtered = [i.filter_by_time(duration_start, duration_end) for i in self.interactions]
+    return [i for i in filtered if i]
+
+  # Graphing utilities to represent flow visually
   def get_packets_graph(self, ax=None, duration_start=0, duration_end=None, draw_highlights=True):
     filtered_packets = self._filter_stats(duration_start, duration_end)
     filtered_interactions = self._filter_interactions(duration_start, duration_end)
@@ -97,7 +122,6 @@ class Flow:
     src_lens = [p.get('pkt_len') for p in src_packets]
     dst_lens = [-p.get('pkt_len') for p in dst_packets]
 
-    # fig, ax = plt.subplots()
     if ax is None:
       ax = plt.axes()
 
@@ -117,19 +141,6 @@ class Flow:
         self._add_interaction_highlight(i, ax)
     return ax
 
-  def _get_stats_for_packet(self, packet):
-    pkt_stats = {}
-    frame_info = packet.get('_source').get('layers').get('frame')
-    ip_info = packet.get('_source').get('layers').get('ip')
-    tcp_info = packet.get('_source').get('layers').get('tcp')
-
-    pkt_stats['src_addr'] = ip_info.get('ip.src')
-    pkt_stats['dst_addr'] = ip_info.get('ip.dst')
-    pkt_stats['pkt_len'] = int(tcp_info.get('tcp.len'))
-    pkt_stats['rel_time'] = float(frame_info.get('frame.time_epoch')) - self.get_start_end_times()[0]
-    pkt_stats['is_ack'] = (tcp_info.get('tcp.flags_tree').get('tcp.flags.ack') == '1')
-    return pkt_stats
-
   def _add_interaction_highlight(self, interaction, ax):
     x_limits = ax.get_xlim()
     graph_duration = x_limits[1] - x_limits[0]
@@ -140,14 +151,3 @@ class Flow:
     max_time = max_time + (0.005 * graph_duration)
 
     ax.axvspan(min_time, max_time).set_alpha(0.5)
-
-  def _filter_stats(self, duration_start=0, duration_end=None):
-    if duration_end is None:
-      duration_end = self.get_duration()
-    return [p for p in self.get_packet_stats() if p.get('rel_time') >= duration_start and p.get('rel_time') <= duration_end]
-
-  def _filter_interactions(self, duration_start=0, duration_end=None):
-    if duration_end is None:
-      duration_end = self.get_duration()
-    filtered = [i.filter_by_time(duration_start, duration_end) for i in self.interactions]
-    return [i for i in filtered if i]

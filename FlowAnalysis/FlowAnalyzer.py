@@ -13,6 +13,7 @@ class FlowAnalyzer:
     """A FlowAnalyzer may be constructed with a string that represents a relative path to a JSON
     file containing PCAP data, formatted with tshark, or a dictionary of the same format.
     """
+    self.flow_map = {}
     self.tcp_flows = []
 
     if type(data) is str:
@@ -27,26 +28,27 @@ class FlowAnalyzer:
     self.tcp_flows = self._get_tcp_flows()
 
   def _get_tcp_flows(self):
-    flows = {}
     all_tcp = [p for p in self._raw_data if p.get('_source').get('layers').get('tcp')]
 
     for p in all_tcp:
       tcp_attribs = p.get('_source').get('layers').get('tcp')
       ip_attribs = p.get('_source').get('layers').get('ip')
 
-      addresses = (ip_attribs.get('ip.src'), ip_attribs.get('ip.dst'))
-      ports = (tcp_attribs.get('tcp.srcport'), tcp_attribs.get('tcp.dstport'))
-      composite_tcp_key = (frozenset(addresses), frozenset(ports))
+      composite_tcp_key = {
+          'src_addr': ip_attribs.get('ip.src'),
+          'dst_addr': ip_attribs.get('ip.dst'),
+          'src_port': tcp_attribs.get('tcp.srcport'),
+          'dst_port': tcp_attribs.get('tcp.dstport')
+          }
 
-      flow_collection = flows.setdefault(composite_tcp_key,
-          [Flow(src=addresses[0], dst=addresses[1], src_port=ports[0], dst_port=ports[1])])
+      self._decide_flow_action(composite_tcp_key, p)
 
-      self._decide_flow_action(flow_collection, p)
-
-    all_flows = sorted([flow for collection in flows.values() for flow in collection], key=lambda x: x.get_start_end_times()[0])
+    all_flows = sorted([flow for collection in self.flow_map.values() for flow in collection], key=lambda x: x.get_start_end_times()[0])
     return all_flows
 
-  def _decide_flow_action(self, flow_collection, pkt):
+  def _decide_flow_action(self, composite_key, pkt):
+    flow_collection = self.flow_map.setdefault(frozenset(composite_key.values()), [Flow(composite_key)])
+
     tcp_attribs = pkt.get('_source').get('layers').get('tcp')
     ip_attribs = pkt.get('_source').get('layers').get('ip')
 
@@ -61,7 +63,7 @@ class FlowAnalyzer:
     if is_fin or is_rst:
       flow_to_append_to.is_open = False
     elif not flow_to_append_to.is_open and not is_ack:
-      flow_to_append_to = Flow()
+      flow_to_append_to = Flow(composite_key)
       flow_collection.append(flow_to_append_to)
 
     flow_to_append_to.append(pkt)
