@@ -21,7 +21,6 @@ class NetAuditor:
         continue
       req = self._generate_request(current_flow)
       current_flow[-1]['is_valid'] = self.pdp.evaluate(req)
-      print(req)
 
   def _generate_request(self, flow):
     current_packet = flow[-1]
