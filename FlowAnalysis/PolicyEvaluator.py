@@ -16,7 +16,7 @@ class PolicyEvaluator:
 
     validities = []
     validities.append(self._check_endpoints(relevant_policy, request.get('packet')))
-    validities.append(self._check_interaction(relevant_policy, request.get('network_state').get('current_interaction')))
+    validities.append(self._check_interaction(relevant_policy, request))
     print(validities)
     return False
 
@@ -45,15 +45,18 @@ class PolicyEvaluator:
     dst = ipaddress.IPv4Address(packet_info.get('dst_addr'))
     device = dst
     endpoint = src
+    sender = 'endpoint'
 
     for n in base_policy.get('devices'):
       if src in n:
         device = src
         endpoint = dst
+        sender = 'device'
         break
 
     base_policy['device'] = device
     base_policy['endpoint'] = endpoint
+    base_policy['sender'] = sender
     return base_policy
 
   def _check_endpoints(self, policy, packet):
@@ -62,7 +65,8 @@ class PolicyEvaluator:
         return True
     return False
 
-  def _check_interaction(self, policy, itx):
+  def _check_interaction(self, policy, req):
+    itx = req.get('network_state').get('current_interaction')
     if (itx.get('duration') * 1000) > policy.get('interaction').get('max_duration'):
       return False
 
@@ -76,6 +80,11 @@ class PolicyEvaluator:
       return False
 
     if endpoint_bytes > policy.get('interaction').get('endpoint').get('total_sent_bytes'):
+      return False
+
+    max_single_bytes = policy.get('interaction').get(policy.get('sender')).get('max_single_payload_bytes')
+
+    if req.get('packet').get('payload_len') > max_single_bytes:
       return False
 
     return True
