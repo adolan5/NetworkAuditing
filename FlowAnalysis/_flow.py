@@ -113,21 +113,39 @@ class Flow:
     return [i for i in filtered if i]
 
   # Graphing utilities to represent flow visually
-  def get_packets_graph(self, ax=None, duration_start=0, duration_end=None, draw_highlights=True):
+  def get_packets_graph(self, ax=None, duration_start=0, duration_end=None, draw_highlights=True, highlight_invalid=False):
     filtered_packets = self._filter_stats(duration_start, duration_end)
     filtered_interactions = self._filter_interactions(duration_start, duration_end)
     src_packets = [p for p in filtered_packets if p.get('src_addr') == self.src_addr]
     dst_packets = [p for p in filtered_packets if p.get('src_addr') == self.dst_addr]
-    src_lens = [p.get('pkt_len') for p in src_packets]
-    dst_lens = [-p.get('pkt_len') for p in dst_packets]
+
+    valid_src_packets = src_packets
+    valid_dst_packets = dst_packets
+    invalid_src_packets = []
+    invalid_dst_packets = []
+
+    if highlight_invalid:
+      valid_src_packets = [p for p in src_packets if p.get('is_valid', True)]
+      valid_dst_packets = [p for p in dst_packets if p.get('is_valid', True)]
+      invalid_src_packets = [p for p in src_packets if not p.get('is_valid', True)]
+      invalid_dst_packets = [p for p in dst_packets if not p.get('is_valid', True)]
+
+    valid_src_lens = [p.get('pkt_len') for p in valid_src_packets]
+    valid_dst_lens = [-p.get('pkt_len') for p in valid_dst_packets]
+    invalid_src_lens = [p.get('pkt_len') for p in invalid_src_packets]
+    invalid_dst_lens = [-p.get('pkt_len') for p in invalid_dst_packets]
 
     if ax is None:
       ax = plt.axes()
 
-    ax.scatter([p.get('rel_time') for p in src_packets], src_lens, label=self.src_addr)
-    ax.scatter([p.get('rel_time') for p in dst_packets], dst_lens, label=self.dst_addr)
-    ax.axhline(0, color='gray', linestyle=':', label='No payload length (e.g., ACK)')
+    ax.scatter([p.get('rel_time') for p in valid_src_packets], valid_src_lens, label=self.src_addr)
+    ax.scatter([p.get('rel_time') for p in valid_dst_packets], valid_dst_lens, label=self.dst_addr)
 
+    if highlight_invalid:
+      ax.scatter([p.get('rel_time') for p in invalid_src_packets], invalid_src_lens, color='darkred', label='Invalid from {}'.format(self.src_addr))
+      ax.scatter([p.get('rel_time') for p in invalid_dst_packets], invalid_dst_lens, color='red', label='Invalid from {}'.format(self.dst_addr))
+
+    ax.axhline(0, color='gray', linestyle=':', label='No payload length (e.g., ACK)')
     x_limits = ax.get_xlim()
     ax.set_title('Packets between {} and {} from {:.2f} to {:.2f} seconds'.format(self.src_addr, self.dst_addr, x_limits[0], x_limits[1]))
     ax.set_xlabel('Relative duration (seconds)')
