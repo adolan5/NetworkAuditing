@@ -1,9 +1,6 @@
 import json
 import ipaddress
 
-# TODO: DELME
-from FlowAnalysis import StatsSerializer
-
 class PolicyEvaluator:
   def __init__(self, policies):
     self.policies = [self._load_policy(p) for p in policies]
@@ -11,14 +8,12 @@ class PolicyEvaluator:
   def evaluate(self, request):
     relevant_policy = self._combine_policies(request.get('packet'))
 
-    # print(json.dumps(relevant_policy, indent=2, cls=StatsSerializer))
-    # print(json.dumps(request, indent=2, cls=StatsSerializer))
+    if not self._check_endpoints(relevant_policy, request.get('packet')):
+      return False
+    if not self._check_interaction(relevant_policy, request):
+      return False
 
-    validities = []
-    validities.append(self._check_endpoints(relevant_policy, request.get('packet')))
-    validities.append(self._check_interaction(relevant_policy, request))
-    print(validities)
-    return False
+    return True
 
   def _load_policy(self, policy):
     if type(policy) is str:
