@@ -10,3 +10,6 @@ class PolicyEvaluator:
         return json.load(f)
     else:
       return policy
+
+  def evaluate(self, request):
+    return False

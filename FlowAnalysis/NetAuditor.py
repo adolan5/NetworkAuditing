@@ -20,10 +20,11 @@ class NetAuditor:
       if current_flow is None:
         continue
       req = self._generate_request(current_flow)
+      current_flow[-1]['is_valid'] = self.pdp.evaluate(req)
       print(req)
 
   def _generate_request(self, flow):
-    current_packet = flow.packet_stats[-1]
+    current_packet = flow[-1]
     flow_stats = flow.get_aggregate_stats()
     itx_stats = flow.interactions[-1].get_aggregate_stats()
     req = {

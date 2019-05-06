@@ -31,6 +31,9 @@ class Flow:
     for p in self.packet_stats:
       yield p
 
+  def __getitem__(self, key):
+    return self.packet_stats[key]
+
   def append(self, packet):
     self.packets.append(packet)
     stat = self._get_stats_for_packet(packet)
