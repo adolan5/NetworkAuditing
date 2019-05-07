@@ -3,3 +3,7 @@ __pycache__
 
 # Jupyter Notebook items
 /.ipynb_checkpoints/
+
+# Packet captures (private information)
+/data/captures/*
+!/data/captures/README.md

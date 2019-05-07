@@ -9,46 +9,35 @@ class FlowAnalyzer:
   different formats.
   """
 
-  def __init__(self, data):
+  def __init__(self, data=None):
     """A FlowAnalyzer may be constructed with a string that represents a relative path to a JSON
     file containing PCAP data, formatted with tshark, or a dictionary of the same format.
     """
-    self.tcp_flows = []
+    self.flow_map = {}
 
     if type(data) is str:
       with open(data) as f:
-        self._raw_data = json.load(f)
-    else:
-      self._raw_data = data
+        raw_data = json.load(f)
+        self._extract_all_data(raw_data)
+    elif data:
+      self._extract_all_data(data)
 
-    self._extract_data()
+  def append_packet(self, pkt):
+    if pkt.get('_source').get('layers').get('tcp'):
+      return self._append_tcp_packet(pkt)
 
-  def _extract_data(self):
-    self.tcp_flows = self._get_tcp_flows()
-
-  def _get_tcp_flows(self):
-    flows = {}
-    all_tcp = [p for p in self._raw_data if p.get('_source').get('layers').get('tcp')]
-
-    for p in all_tcp:
-      tcp_attribs = p.get('_source').get('layers').get('tcp')
-      ip_attribs = p.get('_source').get('layers').get('ip')
-
-      addresses = (ip_attribs.get('ip.src'), ip_attribs.get('ip.dst'))
-      ports = (tcp_attribs.get('tcp.srcport'), tcp_attribs.get('tcp.dstport'))
-      composite_tcp_key = (frozenset(addresses), frozenset(ports))
-
-      flow_collection = flows.setdefault(composite_tcp_key,
-          [Flow(src=addresses[0], dst=addresses[1], src_port=ports[0], dst_port=ports[1])])
-
-      self._decide_flow_action(flow_collection, p)
-
-    all_flows = sorted([flow for collection in flows.values() for flow in collection], key=lambda x: x.get_start_end_times()[0])
-    return all_flows
-
-  def _decide_flow_action(self, flow_collection, pkt):
-    tcp_attribs = pkt.get('_source').get('layers').get('tcp')
+  def _append_tcp_packet(self, pkt):
     ip_attribs = pkt.get('_source').get('layers').get('ip')
+    tcp_attribs = pkt.get('_source').get('layers').get('tcp')
+
+    composite_tcp_key = {
+        'src_addr': ip_attribs.get('ip.src'),
+        'dst_addr': ip_attribs.get('ip.dst'),
+        'src_port': tcp_attribs.get('tcp.srcport'),
+        'dst_port': tcp_attribs.get('tcp.dstport')
+        }
+
+    flow_collection = self.flow_map.setdefault(frozenset(composite_tcp_key.values()), [Flow(composite_tcp_key)])
 
     # TODO: This is a pretty naive way of distinguishing flows. No analysis of sequence numbers
     # involved. Can it be beaten?
@@ -61,7 +50,18 @@ class FlowAnalyzer:
     if is_fin or is_rst:
       flow_to_append_to.is_open = False
     elif not flow_to_append_to.is_open and not is_ack:
-      flow_to_append_to = Flow()
+      flow_to_append_to = Flow(composite_tcp_key)
       flow_collection.append(flow_to_append_to)
 
     flow_to_append_to.append(pkt)
+    return flow_to_append_to
+
+  def _extract_all_data(self, data):
+    for p in data:
+      self.append_packet(p)
+
+  def get_tcp_flows(self):
+    all_flows = sorted([flow for collection in self.flow_map.values() for flow in collection], key=lambda x: x.get_start_end_times()[0])
+    return all_flows
+
+  # def _decide_flow_action(self, composite_key, pkt):

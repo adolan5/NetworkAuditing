@@ -1,4 +1,5 @@
 import json
+import ipaddress
 import numpy as np
 
 class StatsSerializer(json.JSONEncoder):
@@ -7,3 +8,5 @@ class StatsSerializer(json.JSONEncoder):
       return int(obj)
     if isinstance(obj, np.float):
       return float(obj)
+    if isinstance(obj, ipaddress.IPv4Network) or isinstance(obj, ipaddress.IPv4Address):
+      return str(obj)
