@@ -12,6 +12,8 @@ class PolicyEvaluator:
       return False
     if not self._check_interaction(relevant_policy, request):
       return False
+    if not self._check_flow(relevant_policy, request):
+      return False
 
     return True
 
@@ -62,24 +64,24 @@ class PolicyEvaluator:
 
   def _check_interaction(self, policy, req):
     itx = req.get('network_state').get('current_interaction')
+
     if (itx.get('duration') * 1000) > policy.get('interaction').get('max_duration'):
       return False
-
     if itx.get('total_bytes') > policy.get('interaction').get('max_total_payload_bytes'):
       return False
 
     device_bytes = itx.get('total_bytes_by_source').get(str(policy.get('device')), 0)
     endpoint_bytes = itx.get('total_bytes_by_source').get(str(policy.get('endpoint')), 0)
-
     if device_bytes > policy.get('interaction').get('device').get('total_sent_bytes'):
       return False
-
     if endpoint_bytes > policy.get('interaction').get('endpoint').get('total_sent_bytes'):
       return False
 
     max_single_bytes = policy.get('interaction').get(policy.get('sender')).get('max_single_payload_bytes')
-
     if req.get('packet').get('payload_len') > max_single_bytes:
       return False
 
+    return True
+
+  def _check_flow(self, policy, req):
     return True
