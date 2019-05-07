@@ -15,6 +15,7 @@ class InputFuzzer:
   def fuzz(self):
     new_list = scapy.plist.PacketList()
     self._fuzz_duration(new_list)
+    self._fuzz_sizes(new_list)
     return new_list
 
   def _fuzz_duration(self, new_list):
@@ -31,3 +32,23 @@ class InputFuzzer:
 
     if curr_time - original_time > policy_time:
       print('Time constraint invalidated')
+
+  def _fuzz_sizes(self, new_list):
+    for i in range(random.randrange(500)):
+      previous_time = new_list[-1].time
+      new_time = previous_time + random.random() * random.randrange(5)
+
+      rand_packet = random.choice(self.packets).copy()
+      previous_payload_len = len(rand_packet['TCP'].payload)
+      new_payload_len = random.randrange(3000)
+      rand_packet.time = new_time
+      rand_packet['TCP'].remove_payload()
+
+      payload_string = 'p' * new_payload_len
+      rand_packet.add_payload(scapy.packet.Raw(load=payload_string))
+
+      rand_packet['IP'].len = None
+      rand_packet['IP'].chksum = None
+      rand_packet['TCP'].chksum = None
+
+      new_list.append(Ether(bytes(rand_packet)))
