@@ -35,20 +35,19 @@ class InputFuzzer:
 
   def _fuzz_sizes(self, new_list):
     for i in range(random.randrange(500)):
-      previous_time = new_list[-1].time
-      new_time = previous_time + random.random() * random.randrange(5)
-
       rand_packet = random.choice(self.packets).copy()
-      previous_payload_len = len(rand_packet['TCP'].payload)
       new_payload_len = random.randrange(3000)
-      rand_packet.time = new_time
-      rand_packet['TCP'].remove_payload()
-
       payload_string = 'p' * new_payload_len
+      rand_packet['TCP'].remove_payload()
       rand_packet.add_payload(scapy.packet.Raw(load=payload_string))
 
       rand_packet['IP'].len = None
       rand_packet['IP'].chksum = None
       rand_packet['TCP'].chksum = None
+      rand_packet = Ether(bytes(rand_packet))
 
-      new_list.append(Ether(bytes(rand_packet)))
+      previous_time = new_list[-1].time
+      new_time = previous_time + random.random() * random.randrange(5)
+      rand_packet.time = new_time
+
+      new_list.append(rand_packet)
