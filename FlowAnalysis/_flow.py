@@ -138,11 +138,11 @@ class Flow:
     if ax is None:
       ax = plt.axes()
 
-    ax.scatter([p.get('rel_time') for p in valid_src_packets], valid_src_lens, label=self.src_addr)
-    ax.scatter([p.get('rel_time') for p in valid_dst_packets], valid_dst_lens, label=self.dst_addr)
+    ax.scatter([p.get('rel_time') for p in valid_src_packets], valid_src_lens, color='lime', label=self.src_addr)
+    ax.scatter([p.get('rel_time') for p in valid_dst_packets], valid_dst_lens, color='blue', label=self.dst_addr)
 
     if highlight_invalid:
-      ax.scatter([p.get('rel_time') for p in invalid_src_packets], invalid_src_lens, color='darkred', label='Invalid from {}'.format(self.src_addr))
+      ax.scatter([p.get('rel_time') for p in invalid_src_packets], invalid_src_lens, color='black', label='Invalid from {}'.format(self.src_addr))
       ax.scatter([p.get('rel_time') for p in invalid_dst_packets], invalid_dst_lens, color='red', label='Invalid from {}'.format(self.dst_addr))
 
     ax.axhline(0, color='gray', linestyle=':', label='No payload length (e.g., ACK)')
