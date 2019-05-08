@@ -6,13 +6,14 @@ capture_files = ['./data/captures/FormalOnOff.json']
 policies = ['./data/policies/Handshake.json']
 
 pdp = PolicyEvaluator(policies)
-audit = NetAuditor(pdp, capture_files[0])
+valid_audit = NetAuditor(pdp, capture_files[0])
 
-flows = audit.flow_analyzer.get_tcp_flows()
+invalid_audit = NetAuditor(pdp, './data/captures/fuzzed.json')
+
+flows = valid_audit.flow_analyzer.get_tcp_flows()
+# flows = invalid_audit.flow_analyzer.get_tcp_flows()
 
 for f in flows:
   print(f)
-  """
-  f.get_packets_graph()
+  f.get_packets_graph(draw_highlights=False, highlight_invalid=True)
   plt.show()
-  """
