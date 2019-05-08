@@ -1,5 +1,6 @@
 import json
 import random
+import ipaddress
 from scapy.all import *
 
 class InputFuzzer:
@@ -16,6 +17,7 @@ class InputFuzzer:
     new_list = scapy.plist.PacketList()
     self._fuzz_duration(new_list)
     self._fuzz_sizes(new_list)
+    self._fuzz_endpoints(new_list)
     return new_list
 
   def _fuzz_duration(self, new_list):
@@ -51,3 +53,20 @@ class InputFuzzer:
       rand_packet.time = new_time
 
       new_list.append(rand_packet)
+
+  def _fuzz_endpoints(self, new_list):
+    new_start_time = new_list[-1].time + 10
+    curr_time = new_start_time
+    num_packets = math.floor(0.05 * len(self.packets))
+    packet_subset = random.choices(self.packets, k=num_packets)
+
+    for pkt in packet_subset:
+      p = pkt.copy()
+      rand = random.random()
+      if rand > 0.5 and rand < 0.75:
+        p['IP'].src = str(ipaddress.IPv4Address(random.randrange(4294967296)))
+      elif rand >= 0.75:
+        p['IP'].dst = str(ipaddress.IPv4Address(random.randrange(4294967296)))
+      p.time = curr_time
+      curr_time = curr_time + 1
+      new_list.append(p)
