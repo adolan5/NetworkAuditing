@@ -36,6 +36,7 @@ class InputFuzzer:
       print('Time constraint invalidated')
 
   def _fuzz_sizes(self, new_list):
+    curr_time = new_list[-1].time + 10
     for i in range(random.randrange(500)):
       rand_packet = random.choice(self.packets).copy()
       new_payload_len = random.randrange(3000)
@@ -48,9 +49,8 @@ class InputFuzzer:
       rand_packet['TCP'].chksum = None
       rand_packet = Ether(bytes(rand_packet))
 
-      previous_time = new_list[-1].time
-      new_time = previous_time + random.random() * random.randrange(5)
-      rand_packet.time = new_time
+      rand_packet.time = curr_time
+      curr_time = curr_time + random.random() * random.randrange(5)
 
       new_list.append(rand_packet)
 
