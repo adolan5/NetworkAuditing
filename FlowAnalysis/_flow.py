@@ -138,7 +138,7 @@ class Flow:
     if ax is None:
       ax = plt.axes()
 
-    ax.scatter([p.get('rel_time') for p in valid_src_packets], valid_src_lens, color='lime', label=self.src_addr)
+    ax.scatter([p.get('rel_time') for p in valid_src_packets], valid_src_lens, color='#35C120', label=self.src_addr)
     ax.scatter([p.get('rel_time') for p in valid_dst_packets], valid_dst_lens, color='blue', label=self.dst_addr)
 
     if highlight_invalid:
