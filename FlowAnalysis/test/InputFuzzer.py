@@ -4,14 +4,9 @@ import ipaddress
 from scapy.all import *
 
 class InputFuzzer:
-  def __init__(self, capture, policy):
+  def __init__(self, capture):
     all_packets = rdpcap(capture)
     self.packets = all_packets.filter(lambda x: scapy.layers.inet.TCP in x.layers())
-    if type(policy) is str:
-      with open(policy) as f:
-        policy = json.load(f)
-
-    self.policy = policy
 
   def fuzz(self):
     new_list = scapy.plist.PacketList()
@@ -23,7 +18,6 @@ class InputFuzzer:
   def _fuzz_duration(self, new_list):
     rand_packet = random.choice(self.packets)
     original_time = rand_packet.time
-    policy_time = self.policy.get('interaction').get('max_duration') / 1000
     curr_time = original_time
 
     for i in range(random.randrange(500)):
@@ -31,9 +25,6 @@ class InputFuzzer:
       curr_time = curr_time + random.random() * 0.5
       new_packet.time = curr_time
       new_list.append(new_packet)
-
-    if curr_time - original_time > policy_time:
-      print('Time constraint invalidated')
 
   def _fuzz_sizes(self, new_list):
     curr_time = new_list[-1].time + 10
