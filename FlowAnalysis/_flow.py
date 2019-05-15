@@ -149,7 +149,7 @@ class Flow:
     x_limits = ax.get_xlim()
     ax.set_title('Packets between {} and {} from {:.2f} to {:.2f} seconds'.format(self.src_addr, self.dst_addr, x_limits[0], x_limits[1]))
     ax.set_xlabel('Relative duration (seconds)')
-    ax.set_ylabel('Packet length (bytes)')
+    ax.set_ylabel('Packet payload length (bytes)')
     ax.legend(loc=4, title='Sender of Packet')
 
     ax.yaxis.set_major_formatter(ticker.FuncFormatter(lambda x, pos: '{}'.format(abs(x))))
